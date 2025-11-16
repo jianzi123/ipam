@@ -1,0 +1,60 @@
+# IPAM Daemon Configuration
+
+cluster:
+  # Cluster-wide CIDR for pod IPs
+  cidr: "10.244.0.0/16"
+
+  # Size of IP blocks allocated to each node
+  # 24 = /24 subnet (254 usable IPs per node)
+  # 25 = /25 subnet (126 usable IPs per node)
+  # 23 = /23 subnet (510 usable IPs per node)
+  nodeBlockSize: 24
+
+raft:
+  # Unique identifier for this Raft node
+  nodeID: "ipam-1"
+
+  # Address to bind Raft protocol (node-to-node communication)
+  bindAddr: "0.0.0.0:7000"
+
+  # Directory for Raft data (logs, snapshots, stable store)
+  dataDir: "/var/lib/ipam/raft"
+
+  # Bootstrap a new cluster (only set to true for the first node)
+  bootstrap: true
+
+  # Address of existing node to join (leave empty if bootstrapping)
+  joinAddr: ""
+
+  # Cluster peers (for reference, not used in code yet)
+  peers:
+    - "ipam-1:7000"
+    - "ipam-2:7000"
+    - "ipam-3:7000"
+
+grpc:
+  # Address to bind gRPC server (for CNI plugin communication)
+  bindAddr: "0.0.0.0:9090"
+
+  # Unix socket path (preferred for local communication)
+  unixSocket: "/run/ipam/ipam.sock"
+
+performance:
+  # Interval for batching IP usage updates
+  batchInterval: 1s
+
+  # Size of local cache for IP blocks
+  cacheSize: 1000
+
+  # Threshold for pre-allocating new blocks (0.2 = when 20% remaining)
+  preallocateThreshold: 0.2
+
+logging:
+  # Log level: debug, info, warn, error
+  level: info
+
+  # Log format: json, text
+  format: json
+
+  # Enable audit logging for IP allocations
+  audit: true
