@@ -1,5 +1,8 @@
 # BGP 三层网络设计文档
 
+> **重要补充**: 如果你对 iBGP 和 eBGP 的区别、以及多节点共享网段的路由策略有疑问，请先阅读：
+> - **[BGP_IBGP_EBGP_ANALYSIS.md](BGP_IBGP_EBGP_ANALYSIS.md)** - iBGP vs eBGP 深度分析，包含详细的 FRR 配置
+
 ## 目录
 
 - [1. 架构概述](#1-架构概述)

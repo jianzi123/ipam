@@ -172,6 +172,7 @@ Container /32 路由发布
 
 **配置示例**: [configs/](configs/)
 - `bird-node-example.conf` - BIRD BGP 配置
+- `frr-node-example.conf` - FRR/Zebra BGP 配置 🆕
 - `calico-bgp-config.yaml` - Calico BGP 集成
 - `topology-bgp-example.json` - 拓扑 + BGP 配置
 
@@ -179,6 +180,7 @@ Container /32 路由发布
 - [DESIGN.md](DESIGN.md) - 核心 IPAM 设计
 - [ARCHITECTURE.md](ARCHITECTURE.md) - 拓扑架构设计
 - **[BGP_NETWORK_DESIGN.md](BGP_NETWORK_DESIGN.md) - BGP 三层网络设计** 🆕
+- **[BGP_IBGP_EBGP_ANALYSIS.md](BGP_IBGP_EBGP_ANALYSIS.md) - iBGP vs eBGP 深度分析** 🆕
 
 ## 🚀 快速开始
 
