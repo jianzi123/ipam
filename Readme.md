@@ -29,7 +29,9 @@
 
 ## 📋 目录
 
+- [核心特性](#核心特性)
 - [架构设计](#架构设计)
+- [文档导航](#文档导航)
 - [快速开始](#快速开始)
 - [使用指南](#使用指南)
 - [性能测试](#性能测试)
@@ -181,6 +183,84 @@ Container /32 路由发布
 - [ARCHITECTURE.md](ARCHITECTURE.md) - 拓扑架构设计
 - **[BGP_NETWORK_DESIGN.md](BGP_NETWORK_DESIGN.md) - BGP 三层网络设计** 🆕
 - **[BGP_IBGP_EBGP_ANALYSIS.md](BGP_IBGP_EBGP_ANALYSIS.md) - iBGP vs eBGP 深度分析** 🆕
+
+## 📚 文档导航
+
+### 架构文档
+| 文档 | 描述 | 大小 |
+|------|------|------|
+| **[DESIGN.md](DESIGN.md)** | 核心 IPAM 设计（两层分配 + Raft 共识） | 342 行 |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | 拓扑感知架构（Zone/Pod/TOR/Node） | 456 行 |
+
+### BGP 网络文档（按推荐阅读顺序）
+
+| 文档 | 描述 | 大小 | 推荐度 |
+|------|------|------|--------|
+| **[BGP_NETWORK_DESIGN.md](BGP_NETWORK_DESIGN.md)** | Leaf-Spine-TOR 三层网络架构、/32 路由发布、配置示例 | 934 行 | ⭐ 首选阅读 |
+| **[BGP_IBGP_EBGP_ANALYSIS.md](BGP_IBGP_EBGP_ANALYSIS.md)** | iBGP vs eBGP 深度对比、为什么用 eBGP、FRR 配置 | 916 行 | 🔍 深入理解 |
+| **[BGP_AS_ALLOCATION_STRATEGY.md](docs/BGP_AS_ALLOCATION_STRATEGY.md)** | AS 号分配策略（5 种方案对比）、推荐：每节点一个 AS | 861 行 | 🎯 架构决策 |
+| **[BGP_AS_AND_SUBNET_RELATIONSHIP.md](docs/BGP_AS_AND_SUBNET_RELATIONSHIP.md)** | AS 号与网段关系、为什么可以共享网段 | 448 行 | ❓ 常见问题 |
+
+### 快速问题查找
+
+<details>
+<summary><b>Q: 节点应该使用 iBGP 还是 eBGP？</b></summary>
+
+**答案**: eBGP（每个节点独立 AS 号）
+
+**原因**:
+- ✅ 无需 Full Mesh（每节点只连 1-2 个 Leaf）
+- ✅ Next-Hop 自动处理
+- ✅ 路由自动传播
+- ✅ 支持数万节点扩展
+- ✅ 业界标准（Calico、Cilium 默认）
+
+**详见**: [BGP_IBGP_EBGP_ANALYSIS.md](BGP_IBGP_EBGP_ANALYSIS.md) 第 3 章
+</details>
+
+<details>
+<summary><b>Q: 多节点共享网段时，是否需要广播网段？</b></summary>
+
+**答案**: 不需要！只发布 /32 精确路由
+
+**原因**:
+- 广播整个网段 → ECMP 随机转发 → 可能转发到错误节点 ❌
+- 只发布 /32 路由 → 精确路由 → 总是到达正确节点 ✅
+
+**详见**: [BGP_IBGP_EBGP_ANALYSIS.md](BGP_IBGP_EBGP_ANALYSIS.md) 第 4 章
+</details>
+
+<details>
+<summary><b>Q: 如何分配 AS 号？</b></summary>
+
+**推荐方案**: 一个节点一个 AS（全 eBGP 架构）
+
+**AS 号规划**:
+- Spine: 64512-64520 (2 字节私有 AS)
+- Leaf: 65001-65100 (2 字节私有 AS)
+- TOR: 65101-65999 (2 字节私有 AS)
+- Node: 4200000000-4294967294 (4 字节私有 AS，支持 9400 万节点)
+
+**详见**: [BGP_AS_ALLOCATION_STRATEGY.md](docs/BGP_AS_ALLOCATION_STRATEGY.md)
+</details>
+
+<details>
+<summary><b>Q: 每个节点有独立 AS 号，是否需要独立网段？</b></summary>
+
+**答案**: 不需要！AS 号和网段是独立概念
+
+**核心原理**:
+- AS 号：BGP 协议层面的路由域标识
+- 网段：IP 层面的地址分配范围
+- 节点发布的是 /32 精确路由，不是整个网段
+- BGP 只关心路由前缀唯一性，不关心网段所有权
+
+**详见**: [BGP_AS_AND_SUBNET_RELATIONSHIP.md](docs/BGP_AS_AND_SUBNET_RELATIONSHIP.md)
+</details>
+
+### 完整文档索引
+
+查看 **[docs/README.md](docs/README.md)** 获取完整文档导航和分类索引。
 
 ## 🚀 快速开始
 
