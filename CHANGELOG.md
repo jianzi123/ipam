@@ -2,6 +2,99 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2025-11-16
+
+### Added - 拓扑感知架构
+
+#### 1. 网络拓扑管理 (pkg/topology/)
+- **四层拓扑结构**: Zone → Pod → TOR → Node
+- `Topology`: 核心拓扑管理器
+  - `AddZone`: 添加可用区
+  - `AddPod`: 添加 Pod（机房/机柜组）
+  - `AddTOR`: 添加 TOR（Top of Rack 交换机）
+  - `RegisterNode`: 注册节点到拓扑
+  - `GetNodeTOR`: 获取节点所属 TOR
+  - `GetNodePath`: 获取节点完整路径（Zone/Pod/TOR/Node）
+- `SubnetPool`: TOR 级网段池
+  - 支持多用途网段（default、storage、management）
+  - `AddSubnet`: 添加网段到 TOR
+  - `AllocateIP`: 基于用途分配 IP
+  - `ReleaseIP`: 释放 IP
+  - `GetStats`: 获取网段池统计信息
+- 完整的单元测试覆盖
+
+#### 2. 拓扑感知 IP 池 (pkg/ipam/topology_pool.go)
+- `TopologyAwarePool`: 拓扑感知的 IP 池
+- `InitializeTopology`: 从 JSON 配置初始化拓扑
+- `RegisterNode`: 注册节点到指定 TOR
+- `AllocateIPForNode`: 基于节点拓扑位置分配 IP
+- `AllocateIPForNodeWithPurpose`: 分配特定用途的 IP
+- `ReleaseIPForNode`: 释放节点 IP
+- `AddSubnetToTOR`: 动态添加网段到 TOR
+- `GetNodeStats`: 获取节点详细统计（含拓扑路径）
+- JSON 配置支持（TopologyConfig）
+
+#### 3. 拓扑感知 Raft FSM (pkg/raft/topology_fsm.go)
+- `TopologyFSM`: 拓扑操作的 Raft 状态机
+- 支持的命令:
+  - `CommandInitTopology`: 初始化拓扑配置
+  - `CommandRegisterNode`: 注册节点
+  - `CommandAllocateIP`: 分配 IP（拓扑感知）
+  - `CommandReleaseIP`: 释放 IP
+  - `CommandAddSubnet`: 动态添加网段到 TOR
+- 快照和恢复支持
+- 完整的单元测试（7 个测试用例）
+
+#### 4. 拓扑感知 Raft 节点 (pkg/raft/topology_node.go)
+- `TopologyNode`: 拓扑感知的 Raft 节点
+- `InitializeTopology`: 通过 Raft 共识初始化拓扑
+- `RegisterNode`: 通过 Raft 共识注册节点
+- `AllocateIP`: 通过 Raft 共识分配 IP
+- `ReleaseIP`: 通过 Raft 共识释放 IP
+- `AddSubnetToTOR`: 通过 Raft 共识添加网段
+
+#### 5. 架构文档 (ARCHITECTURE.md)
+- 完整的拓扑架构设计文档
+- 三种分配策略详解
+- 数据模型和流程图
+- 性能优化策略
+- 与传统方案的对比
+
+### Features
+
+- **灵活网段映射**
+  - 一个节点可以从多个网段获取 IP（支持不同用途）
+  - 一个网段可以被多个节点共享
+  - 支持运行时动态添加网段
+
+- **多用途网段支持**
+  - `default`: 默认 Pod 网络
+  - `storage`: 存储网络
+  - `management`: 管理网络
+  - 可扩展到自定义用途
+
+- **真实数据中心匹配**
+  - 拓扑结构匹配物理机房布局
+  - TOR 级网段池符合实际网络架构
+  - 支持跨机架网段共享
+
+### Changed
+- 更新 README.md 添加 v0.3.0 拓扑架构说明
+- 更新项目结构文档（新增 topology 包）
+- 修复 cmd/cni-plugin/main.go 未使用的 import
+
+### Testing
+- 所有测试通过 ✓
+- pkg/topology: PASS (SubnetPool + Topology)
+- pkg/ipam: PASS (TopologyAwarePool)
+- pkg/raft: PASS (TopologyFSM)
+- 测试覆盖率: 拓扑相关代码 > 90%
+
+### Documentation
+- ARCHITECTURE.md: 拓扑架构完整设计文档
+- README.md: 新增拓扑架构介绍和示例
+- CHANGELOG.md: 详细的版本变更记录
+
 ## [0.2.0] - 2025-11-16
 
 ### Added

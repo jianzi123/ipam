@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"time"
 
 	"github.com/jianzi123/ipam/pkg/cni"
 	"google.golang.org/grpc"

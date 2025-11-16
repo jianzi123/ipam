@@ -8,11 +8,15 @@
 ## 🌟 核心特性
 
 - **🚀 极致性能**: 本地 bitmap 分配，< 0.3μs 延迟，> 400万 allocations/s per node
+- **🏗️ 拓扑感知架构** (v0.3.0):
+  - 四层网络拓扑：Zone → Pod → TOR → Node
+  - TOR 级网段池管理，匹配真实数据中心架构
+  - 灵活的网段分配：支持多网段/节点、网段共享
 - **🔄 两层分配架构**:
-  - L1: Raft 管理节点级 IP 块分配（低频操作）
+  - L1: Raft 管理拓扑和网段分配（低频操作）
   - L2: 节点本地管理 Pod IP 分配（高频操作）
 - **💪 高可用**: 基于 HashiCorp Raft 的多副本一致性
-- **📊 智能管理**: 预分配、批量操作、自动扩展
+- **📊 智能管理**: 预分配、批量操作、动态扩展
 - **🔌 CNI 兼容**: 完全遵循 CNI 0.4.0/1.0.0 规范
 - **📈 可观测性**: Prometheus 监控（40+ metrics）+ 结构化日志
 - **💾 持久化存储**: BoltDB 存储容器 ID -> IP 映射
@@ -78,7 +82,60 @@
 - Leader 故障自动切换 < 1s
 - 持久化存储（BoltDB）
 
-详细设计文档: [DESIGN.md](DESIGN.md)
+### 拓扑感知架构 (v0.3.0)
+
+v0.3.0 引入了**网络拓扑感知**的 IP 分配架构，匹配真实数据中心的网络层次结构：
+
+```
+Zone (可用区)
+  └─ Pod (机房/机柜组)
+      └─ TOR (Top of Rack 交换机)
+          ├─ Subnet Pool (网段池)
+          │   ├─ 10.244.0.0/24  (default)
+          │   ├─ 10.244.100.0/24 (storage)
+          │   └─ 10.244.200.0/24 (management)
+          └─ Nodes (物理节点)
+              ├─ Node 1
+              ├─ Node 2
+              └─ Node 3
+```
+
+**核心优势**：
+
+1. **灵活的网段分配**
+   - 一个节点可以从多个网段获取 IP（不同用途）
+   - 一个网段可以被多个节点共享
+   - 支持动态添加网段到 TOR
+
+2. **拓扑配置示例**
+```json
+{
+  "zones": [{
+    "id": "zone-a",
+    "name": "Beijing Zone A",
+    "pods": [{
+      "id": "pod-1",
+      "name": "Pod 1",
+      "tors": [{
+        "id": "tor-1",
+        "name": "TOR-R01",
+        "location": "Rack 01",
+        "subnets": [
+          {"cidr": "10.244.0.0/24", "purpose": "default"},
+          {"cidr": "10.244.100.0/24", "purpose": "storage"}
+        ]
+      }]
+    }]
+  }]
+}
+```
+
+3. **多用途网段**
+   - `default`: 默认 Pod 网络
+   - `storage`: 存储网络
+   - `management`: 管理网络
+
+详细设计文档: [DESIGN.md](DESIGN.md) | [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ## 🚀 快速开始
 
@@ -294,8 +351,9 @@ raft:
 ipam/
 ├── pkg/
 │   ├── allocator/      # IP 分配器（bitmap + IPv6）
-│   ├── ipam/          # IP 池管理
-│   ├── raft/          # Raft 集成
+│   ├── ipam/          # IP 池管理（含拓扑感知池）
+│   ├── topology/      # 网络拓扑管理（Zone/Pod/TOR/Node）
+│   ├── raft/          # Raft 集成（含拓扑 FSM）
 │   ├── store/         # 持久化存储（BoltDB）
 │   ├── server/        # gRPC 服务器
 │   ├── metrics/       # Prometheus 指标
@@ -305,7 +363,10 @@ ipam/
 │   ├── ipam-daemon/   # IPAM 守护进程（含 gRPC + metrics）
 │   ├── cni-plugin/    # CNI 插件
 │   └── ipam-cli/      # 管理工具
-├── configs/           # 配置示例
+├── configs/           # 配置示例（含拓扑配置）
+├── docs/              # 设计文档
+│   ├── DESIGN.md      # 原始设计文档
+│   └── ARCHITECTURE.md # 拓扑架构文档
 └── test/             # 集成测试
 
 ```
@@ -353,7 +414,16 @@ go test -cover ./...
 - [x] 性能优化（预分配、批量操作）
 - [x] 完善的错误处理和日志
 
-### 🚧 v0.3.0 (进行中)
+### ✅ v0.3.0 (已完成)
+
+- [x] **拓扑感知架构**：Zone/Pod/TOR/Node 四层网络拓扑
+- [x] **TOR 级网段池**：支持机架级网段管理
+- [x] **灵活网段映射**：一个节点可有多个网段，一个网段可跨多个节点
+- [x] **多用途网段**：default、storage、management 等不同用途
+- [x] **拓扑感知 Raft FSM**：支持拓扑配置的分布式一致性
+- [x] **动态网段扩展**：支持运行时为 TOR 添加新网段
+
+### 🚧 v0.4.0 (进行中)
 
 - [ ] 完整的 CNI 网络配置（veth pair setup）
 - [ ] gRPC mTLS 认证
