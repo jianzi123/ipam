@@ -7,14 +7,16 @@
 
 ## 🌟 核心特性
 
-- **🚀 高性能**: 本地 bitmap 分配，< 1ms 延迟，> 10000 allocations/s per node
+- **🚀 极致性能**: 本地 bitmap 分配，< 0.3μs 延迟，> 400万 allocations/s per node
 - **🔄 两层分配架构**:
   - L1: Raft 管理节点级 IP 块分配（低频操作）
   - L2: 节点本地管理 Pod IP 分配（高频操作）
 - **💪 高可用**: 基于 HashiCorp Raft 的多副本一致性
 - **📊 智能管理**: 预分配、批量操作、自动扩展
 - **🔌 CNI 兼容**: 完全遵循 CNI 0.4.0/1.0.0 规范
-- **📈 可观测**: 丰富的统计信息和监控指标
+- **📈 可观测性**: Prometheus 监控（40+ metrics）+ 结构化日志
+- **💾 持久化存储**: BoltDB 存储容器 ID -> IP 映射
+- **🌐 IPv6 就绪**: 完整的双栈（IPv4+IPv6）和 IPv6-only 支持
 
 ## 📋 目录
 
@@ -291,13 +293,16 @@ raft:
 ```
 ipam/
 ├── pkg/
-│   ├── allocator/      # IP 分配器（bitmap）
+│   ├── allocator/      # IP 分配器（bitmap + IPv6）
 │   ├── ipam/          # IP 池管理
 │   ├── raft/          # Raft 集成
+│   ├── store/         # 持久化存储（BoltDB）
+│   ├── server/        # gRPC 服务器
+│   ├── metrics/       # Prometheus 指标
 │   ├── cni/           # CNI 类型定义
 │   └── api/proto/     # gRPC API 定义
 ├── cmd/
-│   ├── ipam-daemon/   # IPAM 守护进程
+│   ├── ipam-daemon/   # IPAM 守护进程（含 gRPC + metrics）
 │   ├── cni-plugin/    # CNI 插件
 │   └── ipam-cli/      # 管理工具
 ├── configs/           # 配置示例
@@ -330,7 +335,7 @@ go test -cover ./...
 
 ## 🗺️ 路线图
 
-### ✅ 已完成
+### ✅ v0.1.0 (已完成)
 
 - [x] 核心 IP 分配算法（Bitmap）
 - [x] IP 池管理
@@ -339,21 +344,30 @@ go test -cover ./...
 - [x] IPAM 守护进程
 - [x] 基础测试
 
-### 🚧 进行中
+### ✅ v0.2.0 (已完成)
 
-- [ ] gRPC 服务实现
-- [ ] 完整的 CNI 网络配置
-- [ ] 监控指标（Prometheus）
-- [ ] 容器 ID -> IP 映射持久化
+- [x] gRPC 服务实现
+- [x] Prometheus 监控指标（40+ metrics）
+- [x] 容器 ID -> IP 映射持久化（BoltDB）
+- [x] IPv6 完整支持（双栈 + IPv6-only）
+- [x] 性能优化（预分配、批量操作）
+- [x] 完善的错误处理和日志
 
-### 📅 计划中
+### 🚧 v0.3.0 (进行中)
 
-- [ ] IPv6 支持
-- [ ] 多网络平面
+- [ ] 完整的 CNI 网络配置（veth pair setup）
+- [ ] gRPC mTLS 认证
+- [ ] IP 地址回收策略优化
+- [ ] 健康检查 API
+
+### 📅 v0.4.0+ (计划中)
+
+- [ ] 多网络平面支持
 - [ ] IP 地址池动态扩展
 - [ ] 云平台集成（AWS VPC、Azure VNET）
 - [ ] WebUI 管理界面
 - [ ] Helm Chart 部署
+- [ ] 性能基准测试套件
 
 ## 📊 与其他方案对比
 

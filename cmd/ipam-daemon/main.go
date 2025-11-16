@@ -4,13 +4,18 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/jianzi123/ipam/pkg/ipam"
+	"github.com/jianzi123/ipam/pkg/metrics"
 	"github.com/jianzi123/ipam/pkg/raft"
+	"github.com/jianzi123/ipam/pkg/server"
+	"github.com/jianzi123/ipam/pkg/store"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -23,6 +28,8 @@ var (
 	blockSize    = flag.Int("block-size", 24, "IP block size (CIDR prefix)")
 	grpcAddr     = flag.String("grpc-addr", "0.0.0.0:9090", "gRPC server address")
 	unixSocket   = flag.String("unix-socket", "/run/ipam/ipam.sock", "Unix socket path")
+	metricsAddr  = flag.String("metrics-addr", "0.0.0.0:2112", "Prometheus metrics address")
+	enableStore  = flag.Bool("enable-store", true, "Enable persistent IP mapping store")
 )
 
 func main() {
@@ -87,10 +94,56 @@ func main() {
 		log.Printf("Leader is: %s", raftNode.Leader())
 	}
 
-	// Start gRPC server
-	// TODO: Implement gRPC server
-	log.Printf("gRPC server would start on %s", *grpcAddr)
-	log.Printf("Unix socket would be at %s", *unixSocket)
+	// Initialize persistent store if enabled
+	var ipamStore *store.Store
+	if *enableStore {
+		storePath := fmt.Sprintf("%s/ipam.db", *dataDir)
+		ipamStore, err = store.NewStore(storePath)
+		if err != nil {
+			log.Printf("Warning: failed to create store: %v", err)
+		} else {
+			log.Printf("Persistent store initialized at %s", storePath)
+			defer ipamStore.Close()
+		}
+	}
+
+	// Initialize metrics
+	metricsCollector := metrics.NewMetrics()
+	log.Printf("Metrics initialized")
+
+	// Start metrics collector
+	collector := metrics.NewCollector(metricsCollector, pool, raftNode, ipamStore, 10*time.Second)
+	collector.Start()
+	defer collector.Stop()
+	log.Printf("Metrics collector started")
+
+	// Start Prometheus metrics server
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		log.Printf("Starting metrics server on %s", *metricsAddr)
+		if err := http.ListenAndServe(*metricsAddr, nil); err != nil {
+			log.Printf("Metrics server error: %v", err)
+		}
+	}()
+
+	// Create gRPC server
+	grpcServer := server.NewServer(pool, raftNode, ipamStore)
+
+	// Start gRPC server on Unix socket
+	go func() {
+		log.Printf("Starting gRPC server on Unix socket %s", *unixSocket)
+		if err := grpcServer.StartUnix(*unixSocket); err != nil {
+			log.Printf("gRPC server error: %v", err)
+		}
+	}()
+
+	// Also start on TCP for remote access
+	go func() {
+		log.Printf("Starting gRPC server on TCP %s", *grpcAddr)
+		if err := grpcServer.Start(*grpcAddr); err != nil {
+			log.Printf("gRPC server error: %v", err)
+		}
+	}()
 
 	// Print initial pool stats
 	stats := pool.GetStats()
@@ -113,12 +166,19 @@ func main() {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	log.Printf("IPAM daemon running. Press Ctrl+C to stop.")
+	log.Printf("IPAM daemon running. Metrics: http://%s/metrics", *metricsAddr)
+	log.Printf("Press Ctrl+C to stop.")
 	<-sigCh
 
 	log.Printf("Shutting down...")
+
+	// Stop gRPC server
+	grpcServer.Stop()
+	log.Printf("gRPC server stopped")
+
+	// Stop Raft node
 	if err := raftNode.Shutdown(); err != nil {
-		log.Printf("Error during shutdown: %v", err)
+		log.Printf("Error during Raft shutdown: %v", err)
 	}
 
 	log.Printf("Shutdown complete")
