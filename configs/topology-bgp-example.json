@@ -1,0 +1,402 @@
+{
+  "version": "v0.3.0",
+  "description": "拓扑感知 IPAM 配置 - 包含 BGP 网络信息",
+  "cluster_cidr": "10.244.0.0/16",
+  "zones": [
+    {
+      "id": "zone-beijing-a",
+      "name": "北京可用区 A",
+      "description": "北京数据中心 - 机房 A",
+      "subnet_ranges": ["10.244.0.0/16"],
+      "pods": [
+        {
+          "id": "pod-1",
+          "name": "Pod 1 - 第一排机柜",
+          "description": "机房 A 第一排机柜组",
+          "subnet_ranges": ["10.244.1.0/24", "10.244.2.0/24"],
+          "tors": [
+            {
+              "id": "tor-r01-a",
+              "name": "TOR-R01-A",
+              "location": "Rack 01 Row A",
+              "description": "第一排第一个机架 TOR 交换机",
+              "management_ip": "10.0.0.101",
+
+              "subnets": [
+                {
+                  "cidr": "10.244.1.0/24",
+                  "purpose": "default",
+                  "description": "默认 Pod 网络",
+                  "gateway": "169.254.1.1",
+                  "vlan": 100
+                },
+                {
+                  "cidr": "10.244.100.0/24",
+                  "purpose": "storage",
+                  "description": "存储网络 (Ceph/NFS)",
+                  "gateway": "169.254.100.1",
+                  "vlan": 200
+                },
+                {
+                  "cidr": "10.244.200.0/24",
+                  "purpose": "management",
+                  "description": "管理网络",
+                  "gateway": "169.254.200.1",
+                  "vlan": 300
+                }
+              ],
+
+              "bgp": {
+                "leaf_uplinks": [
+                  {
+                    "leaf_id": "leaf-1",
+                    "leaf_name": "Leaf-1 Switch",
+                    "leaf_ip": "192.168.1.1",
+                    "leaf_as": 65001,
+                    "description": "连接到 Leaf-1 (主路径)",
+                    "uplink_speed": "100Gbps",
+                    "lacp": true
+                  },
+                  {
+                    "leaf_id": "leaf-2",
+                    "leaf_name": "Leaf-2 Switch",
+                    "leaf_ip": "192.168.1.2",
+                    "leaf_as": 65001,
+                    "description": "连接到 Leaf-2 (备份路径)",
+                    "uplink_speed": "100Gbps",
+                    "lacp": true
+                  }
+                ]
+              },
+
+              "nodes": [
+                {
+                  "id": "node-1",
+                  "name": "k8s-node-01",
+                  "hostname": "k8s-node-01.example.com",
+                  "management_ip": "192.168.1.10",
+                  "loopback_ip": "1.1.1.10",
+                  "mac_address": "00:50:56:00:01:10",
+                  "bgp": {
+                    "as_number": 4200000001,
+                    "router_id": "192.168.1.10",
+                    "peers": [
+                      {
+                        "peer_ip": "192.168.1.1",
+                        "peer_as": 65001,
+                        "peer_name": "leaf-1",
+                        "bfd_enabled": true
+                      },
+                      {
+                        "peer_ip": "192.168.1.2",
+                        "peer_as": 65001,
+                        "peer_name": "leaf-2",
+                        "bfd_enabled": true
+                      }
+                    ]
+                  },
+                  "labels": {
+                    "rack": "rack-01",
+                    "row": "A",
+                    "datacenter": "beijing-a",
+                    "tor": "tor-r01-a"
+                  },
+                  "capacity": {
+                    "max_pods": 110,
+                    "cpu": "32 cores",
+                    "memory": "128GB",
+                    "network": "25Gbps"
+                  }
+                },
+                {
+                  "id": "node-2",
+                  "name": "k8s-node-02",
+                  "hostname": "k8s-node-02.example.com",
+                  "management_ip": "192.168.1.11",
+                  "loopback_ip": "1.1.1.11",
+                  "mac_address": "00:50:56:00:01:11",
+                  "bgp": {
+                    "as_number": 4200000002,
+                    "router_id": "192.168.1.11",
+                    "peers": [
+                      {
+                        "peer_ip": "192.168.1.1",
+                        "peer_as": 65001,
+                        "peer_name": "leaf-1",
+                        "bfd_enabled": true
+                      },
+                      {
+                        "peer_ip": "192.168.1.2",
+                        "peer_as": 65001,
+                        "peer_name": "leaf-2",
+                        "bfd_enabled": true
+                      }
+                    ]
+                  },
+                  "labels": {
+                    "rack": "rack-01",
+                    "row": "A",
+                    "datacenter": "beijing-a",
+                    "tor": "tor-r01-a"
+                  },
+                  "capacity": {
+                    "max_pods": 110,
+                    "cpu": "32 cores",
+                    "memory": "128GB",
+                    "network": "25Gbps"
+                  }
+                },
+                {
+                  "id": "node-3",
+                  "name": "k8s-node-03",
+                  "hostname": "k8s-node-03.example.com",
+                  "management_ip": "192.168.1.12",
+                  "loopback_ip": "1.1.1.12",
+                  "mac_address": "00:50:56:00:01:12",
+                  "bgp": {
+                    "as_number": 4200000003,
+                    "router_id": "192.168.1.12",
+                    "peers": [
+                      {
+                        "peer_ip": "192.168.1.1",
+                        "peer_as": 65001,
+                        "peer_name": "leaf-1",
+                        "bfd_enabled": true
+                      }
+                    ]
+                  },
+                  "labels": {
+                    "rack": "rack-01",
+                    "row": "A",
+                    "datacenter": "beijing-a",
+                    "tor": "tor-r01-a"
+                  },
+                  "capacity": {
+                    "max_pods": 110,
+                    "cpu": "32 cores",
+                    "memory": "128GB",
+                    "network": "25Gbps"
+                  }
+                }
+              ]
+            },
+            {
+              "id": "tor-r02-a",
+              "name": "TOR-R02-A",
+              "location": "Rack 02 Row A",
+              "description": "第一排第二个机架 TOR 交换机",
+              "management_ip": "10.0.0.102",
+
+              "subnets": [
+                {
+                  "cidr": "10.244.2.0/24",
+                  "purpose": "default",
+                  "gateway": "169.254.2.1",
+                  "vlan": 101
+                },
+                {
+                  "cidr": "10.244.101.0/24",
+                  "purpose": "storage",
+                  "gateway": "169.254.101.1",
+                  "vlan": 201
+                }
+              ],
+
+              "bgp": {
+                "leaf_uplinks": [
+                  {
+                    "leaf_id": "leaf-2",
+                    "leaf_name": "Leaf-2 Switch",
+                    "leaf_ip": "192.168.2.1",
+                    "leaf_as": 65002,
+                    "description": "连接到 Leaf-2",
+                    "uplink_speed": "100Gbps",
+                    "lacp": true
+                  }
+                ]
+              },
+
+              "nodes": [
+                {
+                  "id": "node-4",
+                  "name": "k8s-node-04",
+                  "hostname": "k8s-node-04.example.com",
+                  "management_ip": "192.168.2.10",
+                  "loopback_ip": "1.1.1.14",
+                  "mac_address": "00:50:56:00:02:10",
+                  "bgp": {
+                    "as_number": 4200000004,
+                    "router_id": "192.168.2.10",
+                    "peers": [
+                      {
+                        "peer_ip": "192.168.2.1",
+                        "peer_as": 65002,
+                        "peer_name": "leaf-2",
+                        "bfd_enabled": true
+                      }
+                    ]
+                  },
+                  "labels": {
+                    "rack": "rack-02",
+                    "row": "A",
+                    "datacenter": "beijing-a",
+                    "tor": "tor-r02-a"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+
+  "spine_switches": [
+    {
+      "id": "spine-1",
+      "name": "Spine-1 Core Switch",
+      "management_ip": "10.0.1.1",
+      "loopback_ip": "1.0.0.1",
+      "as_number": 65000,
+      "router_id": "10.0.1.1",
+      "role": "route_reflector",
+      "description": "核心层交换机 - 主",
+      "leaf_peers": [
+        {
+          "leaf_id": "leaf-1",
+          "leaf_ip": "10.0.2.1",
+          "leaf_as": 65001,
+          "description": "eBGP peering to Leaf-1"
+        },
+        {
+          "leaf_id": "leaf-2",
+          "leaf_ip": "10.0.2.2",
+          "leaf_as": 65002,
+          "description": "eBGP peering to Leaf-2"
+        }
+      ],
+      "capacity": {
+        "bandwidth": "3.2Tbps",
+        "ports": "32x 100Gbps"
+      }
+    },
+    {
+      "id": "spine-2",
+      "name": "Spine-2 Core Switch",
+      "management_ip": "10.0.1.2",
+      "loopback_ip": "1.0.0.2",
+      "as_number": 65000,
+      "router_id": "10.0.1.2",
+      "role": "route_reflector",
+      "description": "核心层交换机 - 备",
+      "leaf_peers": [
+        {
+          "leaf_id": "leaf-1",
+          "leaf_ip": "10.0.2.1",
+          "leaf_as": 65001
+        },
+        {
+          "leaf_id": "leaf-2",
+          "leaf_ip": "10.0.2.2",
+          "leaf_as": 65002
+        }
+      ],
+      "capacity": {
+        "bandwidth": "3.2Tbps",
+        "ports": "32x 100Gbps"
+      }
+    }
+  ],
+
+  "leaf_switches": [
+    {
+      "id": "leaf-1",
+      "name": "Leaf-1 Aggregation Switch",
+      "management_ip": "10.0.2.1",
+      "loopback_ip": "1.0.2.1",
+      "as_number": 65001,
+      "router_id": "10.0.2.1",
+      "description": "接入层交换机 - Rack 01 Row A",
+      "connected_tors": ["tor-r01-a"],
+      "spine_uplinks": [
+        {
+          "spine_id": "spine-1",
+          "spine_ip": "10.0.1.1",
+          "spine_as": 65000,
+          "uplink_speed": "400Gbps"
+        },
+        {
+          "spine_id": "spine-2",
+          "spine_ip": "10.0.1.2",
+          "spine_as": 65000,
+          "uplink_speed": "400Gbps"
+        }
+      ],
+      "capacity": {
+        "downlink_bandwidth": "4.8Tbps",
+        "uplink_bandwidth": "800Gbps",
+        "downlink_ports": "48x 100Gbps",
+        "uplink_ports": "8x 100Gbps"
+      }
+    },
+    {
+      "id": "leaf-2",
+      "name": "Leaf-2 Aggregation Switch",
+      "management_ip": "10.0.2.2",
+      "loopback_ip": "1.0.2.2",
+      "as_number": 65002,
+      "router_id": "10.0.2.2",
+      "description": "接入层交换机 - Rack 02 Row A",
+      "connected_tors": ["tor-r02-a"],
+      "spine_uplinks": [
+        {
+          "spine_id": "spine-1",
+          "spine_ip": "10.0.1.1",
+          "spine_as": 65000,
+          "uplink_speed": "400Gbps"
+        },
+        {
+          "spine_id": "spine-2",
+          "spine_ip": "10.0.1.2",
+          "spine_as": 65000,
+          "uplink_speed": "400Gbps"
+        }
+      ],
+      "capacity": {
+        "downlink_bandwidth": "4.8Tbps",
+        "uplink_bandwidth": "800Gbps"
+      }
+    }
+  ],
+
+  "routing_policy": {
+    "route_advertisement": {
+      "node_to_leaf": {
+        "protocol": "eBGP",
+        "advertise": "container_routes_only",
+        "format": "/32",
+        "filter": "10.244.0.0/16 le 32"
+      },
+      "leaf_to_spine": {
+        "protocol": "eBGP",
+        "advertise": "aggregated_or_full",
+        "options": [
+          "aggregate_at_leaf",
+          "advertise_all_32"
+        ],
+        "default": "advertise_all_32"
+      }
+    },
+    "ecmp": {
+      "enabled": true,
+      "max_paths": 32,
+      "description": "启用 ECMP 负载均衡，最多 32 条等价路径"
+    },
+    "bfd": {
+      "enabled": true,
+      "interval": "300ms",
+      "multiplier": 3,
+      "description": "快速故障检测，900ms 内检测链路故障"
+    }
+  }
+}

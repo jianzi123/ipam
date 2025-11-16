@@ -1,0 +1,255 @@
+# Calico BGP 配置示例
+# 用于与 Leaf 交换机进行 eBGP Peering
+
+---
+# ============================================
+# 全局 BGP 配置
+# ============================================
+apiVersion: projectcalico.org/v3
+kind: BGPConfiguration
+metadata:
+  name: default
+spec:
+  # 日志级别
+  logSeverityScreen: Info
+
+  # 禁用 node-to-node mesh (使用 Leaf-Spine 架构)
+  nodeToNodeMeshEnabled: false
+
+  # 全局 AS 号 (0 表示每个节点使用独立 AS)
+  asNumber: 0
+
+  # Service CIDR (不通过 BGP 发布)
+  serviceClusterIPs:
+    - cidr: 10.96.0.0/12
+
+  # 启用 BIRD 作为 BGP daemon
+  birdEnabled: true
+
+  # BIRD 配置模板 (可选，自定义 BIRD 配置)
+  # birdTemplate: |
+  #   router id {{.RouterID}};
+  #   ...
+
+  # Prefix 发布配置
+  prefixAdvertisements:
+    - cidr: 10.244.0.0/16  # 容器 CIDR
+      communities:
+        - 65001:100          # BGP Community 标记
+
+---
+# ============================================
+# 节点配置 (Node-1 示例)
+# ============================================
+apiVersion: projectcalico.org/v3
+kind: Node
+metadata:
+  name: node-1
+  labels:
+    rack: rack-01
+    tor: tor-1
+    leaf: leaf-1
+spec:
+  bgp:
+    # 节点 AS 号 (使用 4 字节私有 AS)
+    asNumber: 4200000001
+
+    # 节点 IP (用于 BGP peering)
+    ipv4Address: 192.168.1.10/24
+
+    # IPv6 配置 (可选)
+    # ipv6Address: fd00:1::10/64
+
+    # Router ID (默认使用 IPv4 地址)
+    # routerID: 192.168.1.10
+
+  # Kubernetes orchestrator 引用
+  orchRefs:
+    - nodeName: node-1
+      orchestrator: k8s
+
+---
+# ============================================
+# BGP Peer 配置 - Node-1 到 Leaf-1
+# ============================================
+apiVersion: projectcalico.org/v3
+kind: BGPPeer
+metadata:
+  name: node-1-to-leaf-1
+spec:
+  # 应用到的节点
+  node: node-1
+
+  # Leaf-1 的 IP 和 AS 号
+  peerIP: 192.168.1.1
+  asNumber: 65001
+
+  # 保持原始下一跳 (false = 设置为本机 IP)
+  keepOriginalNextHop: false
+
+  # 源地址 (可选，默认使用节点 IP)
+  # sourceAddress: 192.168.1.10
+
+  # BFD 配置 (可选)
+  # bfd: true
+
+  # TTL (多跳场景)
+  # ttl: 1  # 默认 1 跳 (直连)
+
+  # 过滤器 (可选)
+  # filters:
+  #   - import: accept-container-routes
+  #   - export: advertise-my-routes
+
+---
+# ============================================
+# BGP Peer 配置 - Node-1 到 Leaf-2 (冗余)
+# ============================================
+apiVersion: projectcalico.org/v3
+kind: BGPPeer
+metadata:
+  name: node-1-to-leaf-2
+spec:
+  node: node-1
+  peerIP: 192.168.1.2
+  asNumber: 65001
+  keepOriginalNextHop: false
+
+---
+# ============================================
+# 全局 BGP Peer (应用到所有节点)
+# ============================================
+# 如果所有节点都连接到相同的 Leaf，可以使用全局配置
+apiVersion: projectcalico.org/v3
+kind: BGPPeer
+metadata:
+  name: global-to-leaf-1
+spec:
+  # 不指定 node，表示应用到所有节点
+  peerIP: 192.168.1.1
+  asNumber: 65001
+  keepOriginalNextHop: false
+
+  # 节点选择器 (可选)
+  nodeSelector: rack == 'rack-01'
+
+---
+# ============================================
+# BGP Filter - 路由过滤器
+# ============================================
+apiVersion: projectcalico.org/v3
+kind: BGPFilter
+metadata:
+  name: export-container-routes
+spec:
+  exportV4:
+    - action: Accept
+      matchOperator: In
+      cidr: 10.244.0.0/16  # 仅导出容器 CIDR
+    - action: Reject       # 拒绝其他路由
+
+---
+apiVersion: projectcalico.org/v3
+kind: BGPFilter
+metadata:
+  name: import-all-container-routes
+spec:
+  importV4:
+    - action: Accept
+      matchOperator: In
+      cidr: 10.244.0.0/16  # 仅接收容器 CIDR
+    - action: Reject       # 拒绝默认路由等
+
+---
+# ============================================
+# IP Pool 配置 - 与 IPAM 集成
+# ============================================
+apiVersion: projectcalico.org/v3
+kind: IPPool
+metadata:
+  name: default-ipv4-pool
+spec:
+  # CIDR 范围
+  cidr: 10.244.0.0/16
+
+  # 块大小 (每个节点分配的 IP 块)
+  blockSize: 24  # /24 = 254 IPs per node
+
+  # IP-in-IP 封装 (BGP 模式下禁用)
+  ipipMode: Never
+
+  # VXLAN 封装 (BGP 模式下禁用)
+  vxlanMode: Never
+
+  # NAT 出站流量 (可选)
+  natOutgoing: true
+
+  # 禁用 BGP 发布 (false = 启用 BGP 发布)
+  disabled: false
+
+  # 节点选择器 (可选)
+  nodeSelector: all()
+
+---
+# ============================================
+# 示例：多机架配置
+# ============================================
+
+# Rack-01 节点配置
+---
+apiVersion: projectcalico.org/v3
+kind: BGPPeer
+metadata:
+  name: rack01-to-leaf-1
+spec:
+  nodeSelector: rack == 'rack-01'
+  peerIP: 192.168.1.1
+  asNumber: 65001
+
+# Rack-02 节点配置
+---
+apiVersion: projectcalico.org/v3
+kind: BGPPeer
+metadata:
+  name: rack02-to-leaf-2
+spec:
+  nodeSelector: rack == 'rack-02'
+  peerIP: 192.168.2.1
+  asNumber: 65002
+
+---
+# ============================================
+# 验证命令
+# ============================================
+
+# 1. 查看 BGP 状态
+#    calicoctl node status
+#
+# 输出示例:
+# Calico process is running.
+#
+# IPv4 BGP status
+# +--------------+-------------------+-------+----------+-------------+
+# | PEER ADDRESS |     PEER TYPE     | STATE |  SINCE   |    INFO     |
+# +--------------+-------------------+-------+----------+-------------+
+# | 192.168.1.1  | node specific     | up    | 12:34:56 | Established |
+# | 192.168.1.2  | node specific     | up    | 12:34:58 | Established |
+# +--------------+-------------------+-------+----------+-------------+
+
+# 2. 查看路由
+#    ip route show | grep bird
+#
+# 输出示例:
+# 10.244.2.5 via 192.168.1.1 dev eth0 proto bird metric 32
+# 10.244.3.10 via 192.168.1.1 dev eth0 proto bird metric 32
+
+# 3. 查看 Calico 配置
+#    calicoctl get bgpconfig default -o yaml
+#    calicoctl get bgppeer -o wide
+
+# 4. BIRD 调试 (进入容器)
+#    kubectl exec -it -n kube-system calico-node-xxx -c calico-node -- birdc show protocols
+#    kubectl exec -it -n kube-system calico-node-xxx -c calico-node -- birdc show route
+
+# 5. 查看 BGP Peer 详情
+#    kubectl exec -it -n kube-system calico-node-xxx -c calico-node -- birdc show protocols all leaf1

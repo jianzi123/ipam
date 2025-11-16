@@ -12,6 +12,11 @@
   - 四层网络拓扑：Zone → Pod → TOR → Node
   - TOR 级网段池管理，匹配真实数据中心架构
   - 灵活的网段分配：支持多网段/节点、网段共享
+- **🌐 BGP 三层网络支持**:
+  - Leaf-Spine-TOR 网络拓扑集成
+  - 容器 IP 以 /32 路由通过 BGP 发布
+  - eBGP 架构，支持大规模扩展
+  - 纯三层路由，无 overlay 封装
 - **🔄 两层分配架构**:
   - L1: Raft 管理拓扑和网段分配（低频操作）
   - L2: 节点本地管理 Pod IP 分配（高频操作）
@@ -20,7 +25,7 @@
 - **🔌 CNI 兼容**: 完全遵循 CNI 0.4.0/1.0.0 规范
 - **📈 可观测性**: Prometheus 监控（40+ metrics）+ 结构化日志
 - **💾 持久化存储**: BoltDB 存储容器 ID -> IP 映射
-- **🌐 IPv6 就绪**: 完整的双栈（IPv4+IPv6）和 IPv6-only 支持
+- **🌌 IPv6 就绪**: 完整的双栈（IPv4+IPv6）和 IPv6-only 支持
 
 ## 📋 目录
 
@@ -135,7 +140,45 @@ Zone (可用区)
    - `storage`: 存储网络
    - `management`: 管理网络
 
-详细设计文档: [DESIGN.md](DESIGN.md) | [ARCHITECTURE.md](ARCHITECTURE.md)
+### BGP 三层网络架构 (可选)
+
+本项目支持与 BGP 网络深度集成，实现纯三层路由的容器网络：
+
+```
+Spine Layer (AS 65000)
+  ├─ Spine-1 ←→ Spine-2 (iBGP)
+  ↓
+Leaf Layer (AS 65001-6500N)
+  ├─ Leaf-1 (AS 65001) ←→ Spine (eBGP)
+  ├─ Leaf-2 (AS 65002) ←→ Spine (eBGP)
+  ↓
+TOR Layer (L2 Switch)
+  ├─ TOR-1 → Leaf-1/Leaf-2
+  ↓
+Node Layer (AS 4200000001-420000000N)
+  ├─ Node-1 (AS 4200000001) ←→ Leaf-1 (eBGP)
+  ├─ Node-2 (AS 4200000002) ←→ Leaf-1 (eBGP)
+  ↓
+Container /32 路由发布
+  ├─ 10.244.1.5/32 via Node-1
+  ├─ 10.244.1.6/32 via Node-1
+```
+
+**核心优势**:
+- **无 overlay 开销**: 纯三层路由，无 VXLAN/IPIP 封装
+- **ECMP 负载均衡**: 多路径自动负载均衡
+- **快速收敛**: BGP + BFD 实现亚秒级故障检测
+- **大规模扩展**: eBGP 架构支持数万节点
+
+**配置示例**: [configs/](configs/)
+- `bird-node-example.conf` - BIRD BGP 配置
+- `calico-bgp-config.yaml` - Calico BGP 集成
+- `topology-bgp-example.json` - 拓扑 + BGP 配置
+
+详细设计文档:
+- [DESIGN.md](DESIGN.md) - 核心 IPAM 设计
+- [ARCHITECTURE.md](ARCHITECTURE.md) - 拓扑架构设计
+- **[BGP_NETWORK_DESIGN.md](BGP_NETWORK_DESIGN.md) - BGP 三层网络设计** 🆕
 
 ## 🚀 快速开始
 
