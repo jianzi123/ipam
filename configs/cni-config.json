@@ -1,0 +1,16 @@
+{
+  "cniVersion": "0.4.0",
+  "name": "k8s-pod-network",
+  "type": "ipam-cni",
+  "ipam": {
+    "type": "ipam-plugin",
+    "daemonSocket": "/run/ipam/ipam.sock",
+    "clusterCIDR": "10.244.0.0/16",
+    "nodeBlockSize": 24,
+    "routes": [
+      {
+        "dst": "0.0.0.0/0"
+      }
+    ]
+  }
+}

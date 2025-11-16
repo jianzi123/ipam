@@ -1,0 +1,127 @@
+syntax = "proto3";
+
+package ipam;
+
+option go_package = "github.com/jianzi123/ipam/pkg/api/proto;proto";
+
+// IPAM service provides IP address management for CNI plugins
+service IPAM {
+  // AllocateIP allocates an IP address for a pod
+  rpc AllocateIP(AllocateIPRequest) returns (AllocateIPResponse);
+
+  // ReleaseIP releases an IP address
+  rpc ReleaseIP(ReleaseIPRequest) returns (ReleaseIPResponse);
+
+  // GetNodeBlocks returns all IP blocks allocated to a node
+  rpc GetNodeBlocks(GetNodeBlocksRequest) returns (GetNodeBlocksResponse);
+
+  // GetPoolStats returns pool statistics
+  rpc GetPoolStats(GetPoolStatsRequest) returns (GetPoolStatsResponse);
+
+  // AllocateBlock allocates a new IP block for a node (admin operation)
+  rpc AllocateBlock(AllocateBlockRequest) returns (AllocateBlockResponse);
+
+  // ReleaseBlock releases an IP block from a node (admin operation)
+  rpc ReleaseBlock(ReleaseBlockRequest) returns (ReleaseBlockResponse);
+}
+
+// AllocateIPRequest requests an IP allocation
+message AllocateIPRequest {
+  string node_id = 1;      // Node identifier
+  string pod_name = 2;     // Pod name
+  string pod_namespace = 3; // Pod namespace
+  string container_id = 4; // Container ID
+}
+
+// AllocateIPResponse returns allocated IP information
+message AllocateIPResponse {
+  string ip = 1;           // Allocated IP address (e.g., "10.244.1.5")
+  string cidr = 2;         // IP with prefix (e.g., "10.244.1.5/24")
+  string gateway = 3;      // Gateway IP
+  repeated Route routes = 4; // Routes to configure
+}
+
+// Route represents a routing entry
+message Route {
+  string dst = 1;          // Destination CIDR (e.g., "0.0.0.0/0")
+  string gw = 2;           // Gateway IP (optional)
+}
+
+// ReleaseIPRequest requests to release an IP
+message ReleaseIPRequest {
+  string node_id = 1;      // Node identifier
+  string ip = 2;           // IP to release
+  string container_id = 3; // Container ID (for logging)
+}
+
+// ReleaseIPResponse confirms IP release
+message ReleaseIPResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// GetNodeBlocksRequest requests blocks for a node
+message GetNodeBlocksRequest {
+  string node_id = 1;
+}
+
+// GetNodeBlocksResponse returns node's IP blocks
+message GetNodeBlocksResponse {
+  repeated IPBlock blocks = 1;
+}
+
+// IPBlock represents an IP address block
+message IPBlock {
+  string cidr = 1;         // CIDR notation (e.g., "10.244.1.0/24")
+  string node_id = 2;      // Node this block is allocated to
+  int32 total = 3;         // Total usable IPs
+  int32 used = 4;          // Used IP count
+  int32 available = 5;     // Available IP count
+  int64 created_at = 6;    // Creation timestamp (Unix seconds)
+}
+
+// GetPoolStatsRequest requests pool statistics
+message GetPoolStatsRequest {
+  // Empty for now, could add filters in future
+}
+
+// GetPoolStatsResponse returns pool statistics
+message GetPoolStatsResponse {
+  int32 total_nodes = 1;
+  int32 total_blocks = 2;
+  int32 total_ips = 3;
+  int32 used_ips = 4;
+  int32 available_ips = 5;
+  map<string, NodeStats> node_stats = 6;
+}
+
+// NodeStats represents per-node statistics
+message NodeStats {
+  string node_id = 1;
+  int32 blocks = 2;
+  int32 total_ips = 3;
+  int32 used_ips = 4;
+  int32 available_ips = 5;
+}
+
+// AllocateBlockRequest requests a new block for a node
+message AllocateBlockRequest {
+  string node_id = 1;
+}
+
+// AllocateBlockResponse returns allocated block info
+message AllocateBlockResponse {
+  IPBlock block = 1;
+}
+
+// ReleaseBlockRequest requests to release a block
+message ReleaseBlockRequest {
+  string node_id = 1;
+  string cidr = 2;
+}
+
+// ReleaseBlockResponse confirms block release
+message ReleaseBlockResponse {
+  bool success = 1;
+  string message = 2;
+}
